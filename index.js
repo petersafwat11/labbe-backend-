@@ -14,11 +14,7 @@ const AppError = require("./utils/appError");
 const globalErrorHandler = require("./controllers/errorController");
 
 // Routes
-const userRoutes = require("./routes/userRoutes");
-const adminRoutes = require("./routes/adminsRoutes");
-const courseRoutes = require("./routes/coursesRoutes");
-const socialRoutes = require("./routes/socialRoutes");
-const testimonialRoutes = require("./routes/testimonialsRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 // Use absolute path to config.env
 dotenv.config({ path: path.join(__dirname, "config.env") });
@@ -76,11 +72,7 @@ apiRouter.use((req, res, next) => {
 });
 
 // Routes
-apiRouter.use("/users", userRoutes);
-apiRouter.use("/admins", adminRoutes);
-apiRouter.use("/courses", courseRoutes);
-apiRouter.use("/social", socialRoutes);
-apiRouter.use("/testimonials", testimonialRoutes);
+apiRouter.use("/auth", authRoutes);
 
 // Handle unmatched routes
 apiRouter.all("*", (req, res, next) => {
