@@ -1,44 +1,6 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
-
 const whiteLabelSchema = new mongoose.Schema(
   {
-    // Basic authentication fields
-    username: {
-      type: String,
-      required: [true, "Please provide a username"],
-      unique: true,
-      trim: true,
-    },
-    email: {
-      type: String,
-      required: [true, "Please provide an email"],
-      unique: true,
-      lowercase: true,
-    },
-    phoneNumber: {
-      type: String,
-      required: [true, "Please provide a phone number"],
-    },
-    password: {
-      type: String,
-      required: [true, "Please provide a password"],
-      minlength: 8,
-      select: false,
-    },
-    passwordConfirm: {
-      type: String,
-      required: [true, "Please confirm your password"],
-      validate: {
-        validator: function (el) {
-          return el === this.password;
-        },
-        message: "Passwords are not the same",
-      },
-    },
-
-    // Identity section
     identity: {
       arabic_name: {
         type: String,
@@ -84,7 +46,7 @@ const whiteLabelSchema = new mongoose.Schema(
       },
     },
 
-    // Login data section
+    // Login data section - matches whiteLabelSchema.js
     loginData: {
       email: {
         type: String,
@@ -104,7 +66,7 @@ const whiteLabelSchema = new mongoose.Schema(
       },
     },
 
-    // System requirements section
+    // System requirements section - matches whiteLabelSchema.js
     systemRequirements: {
       numberOfEvents: {
         type: String,
@@ -148,13 +110,13 @@ const whiteLabelSchema = new mongoose.Schema(
       },
     },
 
-    // Additional services
+    // Additional services - matches whiteLabelSchema.js
     additionalServices: {
       type: [String],
       default: [],
     },
 
-    // Payment data section
+    // Payment data section - matches whiteLabelSchema.js
     paymentData: {
       companyName: {
         type: String,
@@ -214,67 +176,11 @@ const whiteLabelSchema = new mongoose.Schema(
         },
       },
     },
-
-    // Authentication related fields
-    passwordChangedAt: Date,
-    passwordResetToken: String,
-    passwordResetExpires: Date,
   },
   {
     timestamps: true,
   }
 );
-
-// Pre-save middleware for password hashing
-whiteLabelSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
-
-  this.password = await bcrypt.hash(this.password, 12);
-  this.passwordConfirm = undefined;
-  next();
-});
-
-// Pre-save middleware for password change timestamp
-whiteLabelSchema.pre("save", function (next) {
-  if (!this.isModified("password") || this.isNew) return next();
-
-  this.passwordChangedAt = Date.now() - 1000;
-  next();
-});
-
-// Instance method for password comparison
-whiteLabelSchema.methods.correctPassword = async function (
-  candidatePassword,
-  userPassword
-) {
-  return await bcrypt.compare(candidatePassword, userPassword);
-};
-
-// Instance method to check if password was changed after JWT was issued
-whiteLabelSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
-  if (this.passwordChangedAt) {
-    const changedTimestamp = parseInt(
-      this.passwordChangedAt.getTime() / 1000,
-      10
-    );
-    return JWTTimestamp < changedTimestamp;
-  }
-  return false;
-};
-
-// Instance method to create password reset token
-whiteLabelSchema.methods.createPasswordResetToken = function () {
-  const resetToken = crypto.randomBytes(32).toString("hex");
-
-  this.passwordResetToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
-
-  this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-  return resetToken;
-};
 
 const WhiteLabel = mongoose.model("WhiteLabel", whiteLabelSchema);
 

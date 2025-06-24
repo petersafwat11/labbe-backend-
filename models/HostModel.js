@@ -6,13 +6,12 @@ const hostSchema = new mongoose.Schema(
   {
     username: {
       type: String,
-      required: [true, "Please provide a username"],
-      unique: true,
+      // required: [true, "Please provide a username"],
       trim: true,
     },
     email: {
       type: String,
-      required: [true, "Please provide an email"],
+      // required: [true, "Please provide an email"],
       unique: true,
       lowercase: true,
     },
@@ -22,13 +21,13 @@ const hostSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Please provide a password"],
+      // required: [true, "Please provide a password"],
       minlength: 8,
       select: false,
     },
     passwordConfirm: {
       type: String,
-      required: [true, "Please confirm your password"],
+      // required: [true, "Please confirm your password"],
       validate: {
         validator: function (el) {
           return el === this.password;
@@ -39,6 +38,10 @@ const hostSchema = new mongoose.Schema(
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,
+    profileCompleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

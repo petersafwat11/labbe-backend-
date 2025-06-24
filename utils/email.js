@@ -16,7 +16,7 @@ const sendEmail = async (options) => {
 
     // Define email options
     const mailOptions = {
-      from: `Limitless Trading <${process.env.EMAIL_USERNAME}>`,
+      from: `Labbe <${process.env.EMAIL_USERNAME}>`,
       to: options.email,
       subject: options.subject,
       html: `
