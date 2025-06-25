@@ -81,8 +81,6 @@ exports.signupHost = async (req, res) => {
     // Create new host with minimal data
     const newHost = await Host.create({
       phoneNumber,
-      password: "tempPassword123", // Temporary password, will be updated in profile completion
-      passwordConfirm: "tempPassword123",
       profileCompleted: false, // Track if profile is completed
     });
 
