@@ -29,6 +29,11 @@ router.patch("/resetPassword/:token", authController.resetPassword);
 // Protect all routes after this middleware
 router.use(authController.protect);
 
-router.patch("/updateMyPassword", authController.updatePassword);
+router.patch("/host/updateData", authController.updateData);
+router.patch(
+  "/host/sendEmailVerificationCode",
+  authController.sendEmailVerificationCode
+);
+router.patch("/host/verifyEmail", authController.verifyEmail);
 
 module.exports = router;

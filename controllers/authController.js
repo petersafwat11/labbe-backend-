@@ -671,7 +671,7 @@ exports.forgotPassword = async (req, res) => {
       await sendEmail({
         email: user.email,
         subject: "Your password reset token (valid for 10 min)",
-        message: resetURL,
+        message: resetURL, // This will trigger the password reset template in email.js
       });
 
       res.status(200).json({
@@ -807,6 +807,253 @@ exports.adminProtection = catchAsync(async (req, res, next) => {
   next();
 });
 
+exports.updateData = catchAsync(async (req, res, next) => {
+  try {
+    const { username, email, password, passwordConfirm } = req.body;
+
+    console.log("Update data request:", {
+      username,
+      email,
+      hasPassword: !!password,
+    });
+
+    if (!username || !email) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Username and email are required",
+      });
+    }
+
+    // Get the current user
+    const currentUser = await Host.findById(req.user._id);
+
+    if (!currentUser) {
+      return res.status(404).json({
+        status: "fail",
+        message: "User not found",
+      });
+    }
+
+    // Check if email or username already exists (excluding current user)
+    const existingUser = await Host.findOne({
+      $and: [
+        { _id: { $ne: req.user._id } },
+        { $or: [{ email }, { username }] },
+      ],
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Email or username already exists",
+      });
+    }
+
+    // Check if password fields are provided
+    if (password && passwordConfirm) {
+      // Validate passwords match
+      if (password !== passwordConfirm) {
+        return res.status(400).json({
+          status: "fail",
+          message: "Passwords do not match",
+        });
+      }
+
+      // Update all fields including password
+      currentUser.username = username.trim();
+      currentUser.email = email.toLowerCase();
+      currentUser.password = password;
+      currentUser.passwordConfirm = passwordConfirm;
+    } else {
+      // Update only username and email
+      currentUser.username = username.trim();
+      currentUser.email = email.toLowerCase();
+    }
+
+    // Save the updated user
+    const updatedUser = await currentUser.save();
+
+    // Remove password from response
+    updatedUser.password = undefined;
+    updatedUser.passwordConfirm = undefined;
+
+    // Return success response with updated user data
+    res.status(200).json({
+      status: "success",
+      message: password
+        ? "Account settings and password updated successfully"
+        : "Account settings updated successfully",
+      data: {
+        user: {
+          _id: updatedUser._id,
+          username: updatedUser.username,
+          email: updatedUser.email,
+          phoneNumber: updatedUser.phoneNumber,
+          emailVerified: updatedUser.emailVerified,
+          profileCompleted: updatedUser.profileCompleted,
+          createdAt: updatedUser.createdAt,
+          updatedAt: updatedUser.updatedAt,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("Update user data error:", err);
+    res.status(400).json({
+      status: "fail",
+      message: err.message,
+    });
+  }
+});
+
+exports.sendEmailVerificationCode = catchAsync(async (req, res, next) => {
+  try {
+    // Get user email from req.user
+    const { email: userEmail, emailVerified } = req.user;
+
+    if (!userEmail) {
+      return res.status(400).json({
+        status: "fail",
+        message: "User email not found",
+      });
+    }
+
+    // if (emailVerified) {
+    //   return res.status(400).json({
+    //     status: "fail",
+    //     message: "Email already verified",
+    //   });
+    // }
+
+    // Generate 6-digit verification code
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+
+    // Store verification code in user document with expiry
+    const currentUser = await Host.findById(req.user._id);
+
+    if (!currentUser) {
+      return res.status(404).json({
+        status: "fail",
+        message: "User not found",
+      });
+    }
+
+    // Add verification code fields to user (you may need to add these to the Host model)
+    currentUser.emailVerificationCode = verificationCode;
+    currentUser.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    currentUser.emailVerified = false;
+
+    await currentUser.save({ validateBeforeSave: false });
+
+    // Send verification code via email with proper HTML content
+    const emailHTML = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Email Verification Code</h2>
+        <p>Your email verification code is:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <div style="background-color: #f8f9fa; border: 2px solid #007bff; padding: 20px; border-radius: 8px; display: inline-block;">
+            <h1 style="color: #007bff; margin: 0; font-size: 36px; letter-spacing: 4px;">${verificationCode}</h1>
+          </div>
+        </div>
+        <p style="color: #666; font-size: 14px;">
+          This code is valid for 10 minutes. If you didn't request this code, please ignore this email.
+        </p>
+        <hr style="border: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #999; font-size: 12px;">
+          This is an automated message, please do not reply to this email.
+        </p>
+      </div>
+    `;
+
+    try {
+      await sendEmail({
+        email: userEmail,
+        subject: "Email Verification Code",
+        html: emailHTML,
+      });
+
+      res.status(200).json({
+        status: "success",
+        message: "Verification code sent to your email successfully",
+      });
+    } catch (emailError) {
+      console.error("Email sending error:", emailError);
+
+      // Clean up verification code if email fails
+      currentUser.emailVerificationCode = undefined;
+      currentUser.emailVerificationExpires = undefined;
+      await currentUser.save({ validateBeforeSave: false });
+
+      return res.status(500).json({
+        status: "fail",
+        message: "Failed to send verification email. Please try again later.",
+      });
+    }
+  } catch (err) {
+    console.error("Send email verification code error:", err);
+    res.status(400).json({
+      status: "fail",
+      message: err.message,
+    });
+  }
+});
+
+exports.verifyEmail = catchAsync(async (req, res, next) => {
+  try {
+    const { emailVerified } = req.user;
+    // if (emailVerified) {
+    //   return res.status(400).json({
+    //     status: "fail",
+    //     message: "Email already verified",
+    //   });
+    // }
+    const { verificationCode } = req.body;
+
+    if (!verificationCode) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Verification code is required",
+      });
+    }
+
+    // Find user with matching verification code
+    const currentUser = await Host.findOne({
+      _id: req.user._id,
+      emailVerificationCode: verificationCode,
+      emailVerificationExpires: { $gt: Date.now() },
+    });
+
+    if (!currentUser) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid or expired verification code",
+      });
+    }
+
+    // Mark as verified and clear verification fields
+    currentUser.emailVerified = true;
+    currentUser.emailVerificationCode = undefined;
+    currentUser.emailVerificationExpires = undefined;
+
+    await currentUser.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+      status: "success",
+      message: "Email verified successfully",
+      data: {
+        emailVerified: true,
+      },
+    });
+  } catch (err) {
+    console.error("Verify email verification code error:", err);
+    res.status(400).json({
+      status: "fail",
+      message: err.message,
+    });
+  }
+});
+
 exports.updateUser = catchAsync(async (req, res, next) => {
   // Check in both Host and Vendor collections
   let user = await Host.findById(req.params.id);
@@ -827,8 +1074,6 @@ exports.updateUser = catchAsync(async (req, res, next) => {
   user.save();
   res.status(201).json({
     status: "success",
-    data: {
-      data: user,
-    },
+    user,
   });
 });

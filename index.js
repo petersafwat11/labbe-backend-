@@ -15,6 +15,7 @@ const globalErrorHandler = require("./controllers/errorController");
 
 // Routes
 const authRoutes = require("./routes/authRoutes");
+const hostRoutes = require("./routes/HostRoutes");
 
 // Use absolute path to config.env
 dotenv.config({ path: path.join(__dirname, "config.env") });
@@ -40,10 +41,7 @@ apiRouter.use(helmet());
 apiRouter.use(mongoSanitize()); // NoSQL injection protection
 apiRouter.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://labbe.vercel.app",
-    ],
+    origin: ["http://localhost:3000", "https://labbe.vercel.app"],
     methods: ["GET", "POST", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -72,6 +70,7 @@ apiRouter.use((req, res, next) => {
 
 // Routes
 apiRouter.use("/auth", authRoutes);
+apiRouter.use("/host", hostRoutes);
 
 // Handle unmatched routes
 apiRouter.all("*", (req, res, next) => {
@@ -87,4 +86,12 @@ app.use("/api", apiRouter);
 const port = process.env.PORT || 8000;
 app.listen(port, () => {
   console.log(`app running on port ${port}...`);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.log("UNHANDLED REJECTION! 💥 Shutting down...");
+  console.log(err.name, err.message);
+  server.close(() => {
+    process.exit(1);
+  });
 });
