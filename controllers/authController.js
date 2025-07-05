@@ -12,9 +12,6 @@ const {
   getRelativeFilePath,
   processVendorFiles,
 } = require("../utils/fileUpload");
-const bcrypt = require("bcrypt");
-const fs = require("fs");
-const path = require("path");
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -1078,53 +1075,5 @@ exports.updateUser = catchAsync(async (req, res, next) => {
   res.status(201).json({
     status: "success",
     user,
-  });
-});
-
-// Template saving function
-exports.saveTemplate = catchAsync(async (req, res, next) => {
-  // Check if template image was uploaded
-  if (!req.file) {
-    return next(new AppError("No template image provided", 400));
-  }
-
-  // Parse template data from request
-  const templateData = JSON.parse(req.body.templateData || "{}");
-
-  // Generate unique filename
-  const timestamp = Date.now();
-  const filename = `template-${timestamp}.png`;
-  const filepath = path.join(__dirname, "../public/templates", filename);
-
-  // Create templates directory if it doesn't exist
-  const templatesDir = path.join(__dirname, "../public/templates");
-  if (!fs.existsSync(templatesDir)) {
-    fs.mkdirSync(templatesDir, { recursive: true });
-  }
-
-  // Save the image file
-  fs.writeFileSync(filepath, req.file.buffer);
-
-  // Save template data to database (optional)
-  // You can create a TemplateModel and save the data
-  const templateRecord = {
-    filename: filename,
-    filepath: `/templates/${filename}`,
-    templateData: templateData,
-    createdAt: new Date(),
-    userId: req.user?.id || null, // if user is authenticated
-  };
-
-  // Example: Save to database
-  // await TemplateModel.create(templateRecord);
-
-  res.status(201).json({
-    status: "success",
-    message: "Template saved successfully",
-    data: {
-      templateId: timestamp,
-      imageUrl: `/templates/${filename}`,
-      templateData: templateData,
-    },
   });
 });

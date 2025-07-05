@@ -1,32 +1,8 @@
 const express = require("express");
 const authController = require("../controllers/authController");
 const { uploadLogo, uploadVendorFiles } = require("../utils/fileUpload");
-const multer = require("multer");
-const { protect } = require("../utils/auth");
-const {
-  sendOTP,
-  verifyOTP,
-  signUp,
-  signIn,
-  saveTemplate,
-} = require("../controllers/authController");
 
 const router = express.Router();
-
-// Configure multer for file upload
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed"), false);
-    }
-  },
-});
 
 // Signup routes for different user types
 router.post("/signup/host", authController.signupHost);
@@ -42,8 +18,8 @@ router.patch(
 
 // Login routes
 router.post("/login", authController.login); // Email/password login for host and vendor
-router.post("/send-otp", sendOTP);
-router.post("/verify-otp", verifyOTP);
+router.post("/send-otp", authController.sendOTP); // Send OTP to phone number
+router.post("/verify-otp", authController.verifyOTP); // Verify OTP and login
 
 // Existing routes (no changes)
 router.get("/logout", authController.logout);
@@ -59,8 +35,5 @@ router.patch(
   authController.sendEmailVerificationCode
 );
 router.patch("/host/verifyEmail", authController.verifyEmail);
-
-// Template routes
-router.post("/templates/save", upload.single("templateImage"), saveTemplate);
 
 module.exports = router;
