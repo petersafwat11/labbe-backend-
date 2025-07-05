@@ -1,74 +1,177 @@
 const mongoose = require("mongoose");
 
-const eventSchema = new mongoose.Schema(
+// Supervisor sub-schema (specific to events, not a separate model)
+const supervisorSchema = new mongoose.Schema(
   {
-    // Basic Event Information
+    name: {
+      type: String,
+      required: [true, "Supervisor name is required"],
+      trim: true,
+    },
+    phone: {
+      type: String,
+      required: [true, "Supervisor phone number is required"],
+      trim: true,
+      validate: {
+        validator: function (value) {
+          return value && value.length >= 10;
+        },
+        message: "Phone number must be at least 10 digits",
+      },
+    },
+  },
+  { _id: false }
+);
+
+// Location sub-schema (specific to events)
+const locationSchema = new mongoose.Schema(
+  {
+    address: {
+      type: String,
+      required: [true, "Address is required"],
+      trim: true,
+    },
+    latitude: {
+      type: Number,
+      required: [true, "Latitude is required"],
+      min: [-90, "Latitude must be between -90 and 90"],
+      max: [90, "Latitude must be between -90 and 90"],
+    },
+    longitude: {
+      type: Number,
+      required: [true, "Longitude is required"],
+      min: [-180, "Longitude must be between -180 and 180"],
+      max: [180, "Longitude must be between -180 and 180"],
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
+    country: {
+      type: String,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
+// Template sub-schema (specific to events)
+const templateSchema = new mongoose.Schema(
+  {
+    id: Number,
+    name: String,
+    image: String,
+    colors: {
+      primary: String,
+      secondary: String,
+      accent: String,
+    },
+  },
+  { _id: false }
+);
+
+// Event Details sub-schema
+const eventDetailsSchema = new mongoose.Schema(
+  {
     title: {
       type: String,
-      required: [true, "Event title is required"],
+      // required: [true, "Event title is required"],
       trim: true,
       maxlength: [200, "Event title cannot exceed 200 characters"],
     },
-
+    type: {
+      type: String,
+      enum: [
+        "wedding",
+        "birthday",
+        "graduation",
+        "meeting",
+        "conference",
+        "other",
+      ],
+      // required: [true, "Event type is required"],
+    },
+    date: {
+      type: Date,
+      // required: [true, "Event date is required"],
+    },
+    time: {
+      type: String,
+      // required: [true, "Event time is required"],
+      trim: true,
+    },
+    location: {
+      type: locationSchema,
+      // required: [true, "Event location is required"],
+    },
     description: {
       type: String,
       trim: true,
       maxlength: [1000, "Event description cannot exceed 1000 characters"],
     },
+  },
+  { _id: false }
+);
 
-    // Event Dates
-    startDate: {
-      type: Date,
-      required: [true, "Event start date is required"],
+// Invitation Settings sub-schema
+const invitationSettingsSchema = new mongoose.Schema(
+  {
+    selectedTemplate: templateSchema,
+    invitationMessage: String,
+    attendanceAutoReply: String,
+    absenceAutoReply: String,
+    expectedAttendanceAutoReply: String,
+    templateImage: String, // Store file path or URL
+    note: String,
+  },
+  { _id: false }
+);
+
+// Launch Settings sub-schema
+const launchSettingsSchema = new mongoose.Schema(
+  {
+    sendSchedule: {
+      type: String,
+      enum: ["now", "later"],
+      default: "now",
+    },
+    scheduledDate: Date,
+    scheduledTime: String,
+  },
+  { _id: false }
+);
+
+// Main Event Schema
+const eventSchema = new mongoose.Schema(
+  {
+    // Event Details
+    eventDetails: {
+      type: eventDetailsSchema,
+      required: [true, "Event details are required"],
     },
 
-    endDate: {
-      type: Date,
-      required: [true, "Event end date is required"],
-      validate: {
-        validator: function (value) {
-          return value >= this.startDate;
-        },
-        message: "End date must be after or equal to start date",
+    // Guest List - Reference to existing Guest model
+    guestList: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Guest",
       },
-    },
+    ],
 
-    // Event Location
-    location: {
-      address: {
-        type: String,
-        trim: true,
-      },
-      city: {
-        type: String,
-        trim: true,
-      },
-      country: {
-        type: String,
-        trim: true,
-      },
-      coordinates: {
-        latitude: Number,
-        longitude: Number,
-      },
-    },
+    // Supervisors List (event-specific, not a separate model)
+    supervisorsList: [supervisorSchema],
 
-    // Event Host
+    // Invitation Settings
+    invitationSettings: invitationSettingsSchema,
+
+    // Launch Settings
+    launchSettings: launchSettingsSchema,
+
+    // Event Host - Reference to existing Host model
     host: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Host",
       required: [true, "Event must belong to a host"],
-    },
-
-    // Event Settings
-    maxGuests: {
-      type: Number,
-      min: [1, "Maximum guests must be at least 1"],
-    },
-
-    isPublic: {
-      type: Boolean,
-      default: false,
     },
 
     // Event Status
@@ -77,28 +180,6 @@ const eventSchema = new mongoose.Schema(
       enum: ["draft", "published", "ongoing", "completed", "cancelled"],
       default: "draft",
     },
-
-    // Event Type/Category
-    category: {
-      type: String,
-      enum: [
-        "wedding",
-        "birthday",
-        "corporate",
-        "conference",
-        "party",
-        "other",
-      ],
-      required: [true, "Event category is required"],
-    },
-
-    // Event Images
-    images: [
-      {
-        url: String,
-        alt: String,
-      },
-    ],
 
     // Guest Statistics
     guestStats: {
@@ -124,47 +205,65 @@ const eventSchema = new mongoose.Schema(
 
 // Indexes for better performance
 eventSchema.index({ host: 1 });
-eventSchema.index({ startDate: 1 });
+eventSchema.index({ "eventDetails.date": 1 });
 eventSchema.index({ status: 1 });
-eventSchema.index({ category: 1 });
+eventSchema.index({ "eventDetails.type": 1 });
 eventSchema.index({ createdAt: -1 });
-
-// Virtual for event duration in hours
-eventSchema.virtual("duration").get(function () {
-  if (this.startDate && this.endDate) {
-    return Math.ceil((this.endDate - this.startDate) / (1000 * 60 * 60));
-  }
-  return 0;
-});
 
 // Virtual for checking if event is upcoming
 eventSchema.virtual("isUpcoming").get(function () {
-  return this.startDate > new Date();
+  return this.eventDetails.date > new Date();
 });
 
 // Virtual for checking if event is past
 eventSchema.virtual("isPast").get(function () {
-  return this.endDate < new Date();
+  return this.eventDetails.date < new Date();
 });
 
 // Static method to find events by host
 eventSchema.statics.findByHost = function (hostId) {
-  return this.find({ host: hostId }).sort({ startDate: -1 });
+  return this.find({ host: hostId })
+    .populate("host", "username email phoneNumber")
+    .populate("guestList", "name email phone status")
+    .sort({ "eventDetails.date": -1 });
 };
 
 // Static method to find upcoming events
 eventSchema.statics.findUpcoming = function (hostId = null) {
-  const query = { startDate: { $gt: new Date() } };
+  const query = { "eventDetails.date": { $gt: new Date() } };
   if (hostId) query.host = hostId;
-  return this.find(query).sort({ startDate: 1 });
+  return this.find(query)
+    .populate("host", "username email phoneNumber")
+    .populate("guestList", "name email phone status")
+    .sort({ "eventDetails.date": 1 });
 };
 
 // Instance method to update guest statistics
-eventSchema.methods.updateGuestStats = function () {
-  // This would typically involve aggregating from the Guest collection
-  // Implementation depends on your guest management logic
+eventSchema.methods.updateGuestStats = async function () {
+  if (this.guestList && this.guestList.length > 0) {
+    // If guestList contains ObjectIds, we need to populate to get the actual guest data
+    await this.populate("guestList", "status");
+
+    this.guestStats.totalInvited = this.guestList.length;
+    this.guestStats.totalConfirmed = this.guestList.filter(
+      (guest) => guest.status === "confirmed"
+    ).length;
+    this.guestStats.totalAttended = this.guestList.filter(
+      (guest) => guest.status === "attended"
+    ).length;
+  }
   return this.save();
 };
+
+// Pre-save middleware to update guest statistics
+eventSchema.pre("save", async function (next) {
+  if (this.isModified("guestList")) {
+    this.guestStats.totalInvited = this.guestList.length;
+    // For detailed stats, we'd need to populate the guests
+    // This is handled in the updateGuestStats method
+  }
+  next();
+});
 
 const Event = mongoose.model("Event", eventSchema);
 

@@ -216,7 +216,7 @@ guestSchema.statics.getEventStats = async function (eventId) {
 };
 
 // Instance method to check in guest
-guestSchema.methods.checkIn = function (checkedInBy) {
+guestSchema.methods.performCheckIn = function (checkedInBy) {
   this.checkIn.checkedIn = true;
   this.checkIn.checkedInAt = new Date();
   // this.checkIn.checkedInBy = checkedInBy;

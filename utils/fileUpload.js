@@ -28,6 +28,8 @@ const storage = multer.diskStorage({
       uploadPath = path.join(uploadsDir, "documents");
     } else if (file.fieldname === "profileFile") {
       uploadPath = path.join(uploadsDir, "documents");
+    } else if (file.fieldname === "templateImage") {
+      uploadPath = path.join(uploadsDir, "templates");
     } else {
       uploadPath = path.join(uploadsDir, "general");
     }
@@ -160,5 +162,6 @@ module.exports = {
   uploadLogo: uploadImage.single("logo"),
   uploadMultipleImages: uploadImage.array("images", 10),
   uploadPortfolio: uploadImage.array("portfolio", 20),
+  uploadTemplateImage: uploadImage.single("templateImage"),
   uploadVendorFiles,
 };

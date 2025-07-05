@@ -16,6 +16,7 @@ const globalErrorHandler = require("./controllers/errorController");
 // Routes
 const authRoutes = require("./routes/authRoutes");
 const hostRoutes = require("./routes/HostRoutes");
+const eventRoutes = require("./routes/eventRoutes");
 
 // Use absolute path to config.env
 dotenv.config({ path: path.join(__dirname, "config.env") });
@@ -71,6 +72,7 @@ apiRouter.use((req, res, next) => {
 // Routes
 apiRouter.use("/auth", authRoutes);
 apiRouter.use("/host", hostRoutes);
+apiRouter.use("/events", eventRoutes);
 
 // Handle unmatched routes
 apiRouter.all("*", (req, res, next) => {
